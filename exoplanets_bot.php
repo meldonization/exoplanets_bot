@@ -1,5 +1,11 @@
 <?php
 
+/* TO-DOs
+[ ] Alias names for different types of input
+[ ] Return oec planet weblink 
+[ ] Add reply_markup keyboards submenu (like HD/GL)
+*/
+
 define('BOT_TOKEN', 'your_bot_token');
 define('API_URL', 'https://api.telegram.org/bot'.BOT_TOKEN.'/');
 

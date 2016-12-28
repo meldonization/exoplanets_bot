@@ -1,6 +1,6 @@
 <?php
 
-define('BOT_TOKEN', 'XXXXXXX:kjasdnvkjasndakdsjnaskjl');
+define('BOT_TOKEN', 'your_bot_token');
 define('API_URL', 'https://api.telegram.org/bot'.BOT_TOKEN.'/');
 
 function apiRequestWebhook($method, $parameters) {
@@ -113,6 +113,31 @@ function apiRequestJson($method, $parameters) {
   return exec_curl_request($handle);
 }
 
+function planetString($text, $planet) {
+  $text = $text.sprintf("%'-30s", '-')."\n".
+    sprintf("%'.-10s", 'Planet: ').sprintf("%'.20s", $planet->name)."\n".
+    sprintf("%'.-15s", 'Mp [Mjup]: ').sprintf("%'.15s", $planet->mass)."\n".
+    sprintf("%'.-15s", 'Rp [Rjup]: ').sprintf("%'.15s", $planet->radius)."\n".
+    sprintf("%'.-15s", 'Per [d]: ').sprintf("%'.15s", $planet->period)."\n".
+    sprintf("%'.-15s", 'A [au]: ').sprintf("%'.15s", $planet->semimajoraxis)."\n".
+    sprintf("%'.-15s", 'ecc: ').sprintf("%'.15s", $planet->eccentricity)."\n".
+    sprintf("%'.-15s", 'DiscMeth: ').sprintf("%'.15s", $planet->discoverymethod)."\n";
+  return $text;
+}
+
+function starString($text, $star) {
+  $text = $text.sprintf("%'+30s", '+')."\n".
+    sprintf("%'.-10s", 'Name: ').sprintf("%'.20s", $star->name)."\n".
+    sprintf("%'.-15s",'Ms [Msun]: ').sprintf("%'.15s", $star->mass)."\n".
+    sprintf("%'.-15s",'Rs [Rsun]: ').sprintf("%'.15s", $star->radius)."\n".
+    sprintf("%'.-15s", 'Vmag: ').sprintf("%'.15s", $star->magV)."\n".
+    sprintf("%'.-15s", '[Fe/H]: ').sprintf("%'.15s", $star->metallicity)."\n".
+    sprintf("%'.-15s", 'SpecType: ').sprintf("%'.15s", $star->spectraltype)."\n".
+    sprintf("%'.-15s", 'Teff [K]: ').sprintf("%'.15s", $star->temperature)."\n";
+  return $text;
+}
+	
+
 function processMessage($message) {
   // process incoming message
   
@@ -124,7 +149,7 @@ function processMessage($message) {
 
     if (strpos($text, "/start") === 0) {
       apiRequestJson("sendMessage", array('chat_id' => $chat_id, "text" => 'Welcome 欢迎来到系外行星检索库', 'reply_markup' => array(
-        'keyboard' => array(array('Hello', '/help', 'WASP-47')),
+        'keyboard' => array(array('Hello', '/help', 'WASP-47', 'Kepler-16', 'Alpha Centauri')),
         'one_time_keyboard' => true,
         'resize_keyboard' => true)));
     } else if ($text === "Hello" || $text === "Hi") {
@@ -137,9 +162,38 @@ function processMessage($message) {
       apiRequest("sendMessage", array('chat_id' => $chat_id, "text" => 'Type /help for this help info. Or simply enter the name of the exoplanet! 😘 '));
     } else {
       $xml=simplexml_load_file("./open_exoplanet_catalogue/systems/".$text.".xml") or die("Error: No such planet");
-      $text1Send = sprintf("%'.-15s", 'Name: ').sprintf("%'.15s", $text)."\n".sprintf("%'.-15s",'Mstar [Msun]: ').sprintf("%'.15s", $xml->star->mass)."\n".sprintf("%'.-15s",'Rstar [Rsun]: ').sprintf("%'.15s", $xml->star->radius)."\n".sprintf("%'.-15s", 'Vmag: ').sprintf("%'.15s", $xml->star->magV)."\n".sprintf("%'.-15s", '[Fe/H]: ').sprintf("%'.15s", $xml->star->metallicity)."\n".sprintf("%'.-15s", 'SpecType: ').sprintf("%'.15s", $xml->star->spectraltype)."\n".sprintf("%'.-15s", 'Teff [K]: ').sprintf("%'.15s", $xml->star->temperature)."\n".sprintf("%'.-15s", 'RA [h m s]: ').sprintf("%'.15s", $xml->rightascension)."\n".sprintf("%'.-15s", 'Dec [d m s] : ').sprintf("%'.15s", $xml->declination)."\n".sprintf("%'.-15s", 'Dist [pc]: ').sprintf("%'.15s", $xml->distance)."\n";
-      foreach ($xml->star->planet as $planet) {
-        $text1Send = $text1Send.sprintf("%'-30s", '-')."\n".sprintf("%'.-15s", 'Planet: ').sprintf("%'.15s", $planet->name)."\n".sprintf("%'.-15s", 'Mp [Mjup]: ').sprintf("%'.15s", $planet->mass)."\n".sprintf("%'.-15s", 'Rp [Rjup]: ').sprintf("%'.15s", $planet->radius)."\n".sprintf("%'.-15s", 'Per [day]: ').sprintf("%'.15s", $planet->period)."\n".sprintf("%'.-15s", 'A [au]: ').sprintf("%'.15s", $planet->semimajoraxis)."\n".sprintf("%'.-15s", 'ecc: ').sprintf("%'.15s", $planet->eccentricity)."\n".sprintf("%'.-15s", 'DiscMeth: ').sprintf("%'.15s", $planet->discoverymethod)."\n";
+      $text1Send = sprintf("%'.-15s", 'Name: ').sprintf("%'.15s", $text)."\n".
+          sprintf("%'.-15s", 'RA [h m s]: ').sprintf("%'.15s", $xml->rightascension)."\n".
+          sprintf("%'.-15s", 'Dec [d m s] : ').sprintf("%'.15s", $xml->declination)."\n".
+          sprintf("%'.-15s", 'Dist [pc]: ').sprintf("%'.15s", $xml->distance)."\n";
+      if ( $xml->binary != '' ) {
+          $text1Send = $text1Send.sprintf("%'.-15s", 'Binary A [au]: ').sprintf("%'.15s", $xml->binary->semimajoraxis)."\n";
+          foreach ($xml->binary->star as $star) {
+            $text1Send = starString($text1Send, $star);
+            foreach ($star->planet as $planet) {
+              $text1Send = planetString($text1Send, $planet);
+            }
+            if ( $xml->binary->binary != '' ) {
+              $text1Send = $text1Send.sprintf("%'.-15s", 'Binary A [au]: ').sprintf("%'.15s", $xml->binary->binary->semimajoraxis)."\n";
+              foreach ($xml->binary->binary->star as $star) {
+               $text1Send = starString($text1Send, $star);
+               foreach ($star->planet as $planet) {
+                 $text1Send = planetString($text1Send, $planet);
+               }
+             }
+           }
+         }
+         if ( $xml->binary->planet != '' ) {
+           foreach ($xml->binary->planet as $planet) {
+             $text1Send = planetString($text1Send, $planet);
+           }
+         }
+      } else {
+          $star = $xml->star;
+          $text1Send = starString($text1Send, $star);
+          foreach ($star->planet as $planet) {
+            $text1Send = planetString($text1Send, $planet);
+           }
       }
       apiRequest("sendMessage", array('chat_id' => $chat_id, 'parse_mode' => 'HTML', "text" => "<pre>".$text1Send."</pre>"));
       //apiRequestWebhook("sendMessage", array('chat_id' => $chat_id, "reply_to_message_id" => $message_id, "text" => $text1Send));
@@ -150,10 +204,15 @@ function processMessage($message) {
   } else {
     apiRequest("sendMessage", array('chat_id' => $chat_id, "text" => 'Sorry, I only understand Gaian Symbols. 😂 '));
   }
+  
+  $arcfile = fopen("./cundangmsg.db", "a") or die("Unable to open file!");
+  fwrite($arcfile, json_encode($message,true));
+  fwrite($arcfile, "\n");
+  fclose($arcfile);
 }
 
 
-define('WEBHOOK_URL', 'https://your_ip/exoplanets_bot.php');
+define('WEBHOOK_URL', 'https://you-ip/exoplanets_bot.php');
 
 if (php_sapi_name() == 'cli') {
   // if run from console, set or delete webhook
